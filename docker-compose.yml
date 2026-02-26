@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: clinicops-postgres
+    environment:
+      POSTGRES_DB: clinicops
+      POSTGRES_USER: clinicops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    networks:
+      - clinicops_net
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+
+  api:
+    build: ./api
+    container_name: clinicops-api
+    environment:
+      DATABASE_URL: postgresql+psycopg://clinicops:${POSTGRES_PASSWORD}@postgres:5432/clinicops
+      JWT_SECRET: ${JWT_SECRET}
+      APP_BASE_URL: ${APP_BASE_URL}
+      TIMEZONE: ${TIMEZONE}
+      MESSAGING_PROVIDER: ${MESSAGING_PROVIDER}
+      REMINDER_MODE: ${REMINDER_MODE}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
+    volumes:
+      - ./api:/app
+    depends_on:
+      - postgres
+    networks:
+      - clinicops_net
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+
+  web:
+    build: ./web
+    container_name: clinicops-web
+    environment:
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE}
+    depends_on:
+      - api
+    networks:
+      - clinicops_net
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+networks:
+  clinicops_net:
+    driver: bridge
