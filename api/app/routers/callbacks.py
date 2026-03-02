@@ -119,7 +119,8 @@ def complete_cb(
     db.refresh(cb)
     return cb
 
-@router.get("/{cb_id}", response_model=schemas.Callback) # This was the line failing
+# Change response_model from schemas.Callback to schemas.CallbackRead
+@router.get("/{cb_id}", response_model=schemas.CallbackRead) 
 def get_callback(cb_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     cb = db.query(models.Callback).filter(models.Callback.id == cb_id).first()
     if not cb:
