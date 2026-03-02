@@ -7,6 +7,7 @@ from datetime import datetime, timezone, date
 from ..deps import get_db, get_current_user
 from ..models import Callback, CallbackStatus, User
 from ..schemas import CallbackCreate, CallbackUpdate
+from .. import schemas, models
 
 router = APIRouter(prefix="/api/callbacks", tags=["callbacks"])
 
@@ -118,22 +119,21 @@ def complete_cb(
     db.refresh(cb)
     return cb
 
-@router.get("/{cb_id}", response_model=schemas.Callback)
-def get_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+@router.get("/{cb_id}", response_model=schemas.Callback) # This was the line failing
+def get_callback(cb_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     cb = db.query(models.Callback).filter(models.Callback.id == cb_id).first()
     if not cb:
         raise HTTPException(status_code=404, detail="Callback not found")
     return cb
 
 @router.delete("/{cb_id}")
-def delete_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def delete_callback(cb_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     cb = db.query(models.Callback).filter(models.Callback.id == cb_id).first()
     if not cb:
         raise HTTPException(status_code=404, detail="Callback not found")
     
-    # Simple security: Only Admin or the creator can delete
     if user.role != models.Role.ADMIN and cb.created_by != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this record")
+        raise HTTPException(status_code=403, detail="Not authorized")
         
     db.delete(cb)
     db.commit()
