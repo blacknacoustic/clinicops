@@ -1,26 +1,23 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || "http://10.0.0.48:8000/api";
+// web/src/lib/api.ts
 
-export async function api<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const token =
-    typeof window === "undefined" ? null : localStorage.getItem("token");
+const API_BASE = "/api"; 
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(opts.headers as Record<string, string> | undefined),
-  };
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-
-  // Ensure path starts with /
-  const p = path.startsWith("/") ? path : `/${path}`;
-
-  const res = await fetch(`${API_BASE}${p}`, { ...opts, headers });
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init.headers || {}),
+    },
+  });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(text || `Request failed: ${res.status}`);
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.detail || `Error: ${res.status}`);
   }
 
-  return res.json();
+  return (await res.json()) as T;
 }
