@@ -117,3 +117,24 @@ def complete_cb(
     db.commit()
     db.refresh(cb)
     return cb
+
+@router.get("/{cb_id}", response_model=schemas.Callback)
+def get_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    cb = db.query(models.Callback).filter(models.Callback.id == cb_id).first()
+    if not cb:
+        raise HTTPException(status_code=404, detail="Callback not found")
+    return cb
+
+@router.delete("/{cb_id}")
+def delete_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    cb = db.query(models.Callback).filter(models.Callback.id == cb_id).first()
+    if not cb:
+        raise HTTPException(status_code=404, detail="Callback not found")
+    
+    # Simple security: Only Admin or the creator can delete
+    if user.role != models.Role.ADMIN and cb.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this record")
+        
+    db.delete(cb)
+    db.commit()
+    return {"ok": True}
