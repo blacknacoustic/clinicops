@@ -1,15 +1,24 @@
-import { useRouter } from "next/router";
+import { useRouter } from 'next/router';
+import { LogOut } from 'lucide-react';
 
-export default function LogoutButton() {
-  const r = useRouter();
+interface LogoutButtonProps {
+  className?: string;
+}
 
-  function logout() {
-    localStorage.removeItem("token");
-    r.push("/login");
-  }
+export default function LogoutButton({ className }: LogoutButtonProps) {
+  const router = useRouter();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/login');
+  };
 
   return (
-    <button type="button" onClick={logout}>
+    <button 
+      onClick={handleLogout} 
+      className={className || "bg-red-600 text-white px-4 py-2 rounded"}
+    >
+      <LogOut size={18} className="inline mr-2" />
       Logout
     </button>
   );
