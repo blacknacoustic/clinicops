@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: Add a smooth transition for the sidebar and page loads */
+body {
+  @apply bg-slate-50 text-slate-900;
+  transition: background-color 0.2s ease;
+}

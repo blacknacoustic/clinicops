@@ -10,7 +10,16 @@ import {
 } from 'lucide-react';
 import LogoutButton from './LogoutButton';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+// FIX: This interface tells TypeScript that 'user' is a valid prop
+interface LayoutProps {
+  children: React.ReactNode;
+  user?: {
+    username: string;
+    role: string;
+  } | null;
+}
+
+export default function Layout({ children, user }: LayoutProps) {
   const router = useRouter();
   
   const menuItems = [
@@ -23,8 +32,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar - Fixed width */}
-      <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col fixed h-full z-20">
+      {/* Sidebar - Wider and more modern */}
+      <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col fixed h-full z-20 shadow-2xl">
         <div className="p-8 flex items-center gap-3 text-white border-b border-slate-800">
           <Stethoscope className="text-blue-400" size={32} />
           <span className="text-2xl font-bold tracking-tight">ClinicOps</span>
@@ -37,7 +46,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link 
                 key={item.name} 
                 href={item.href}
-                className={`flex items-center gap-4 px-4 py-4 rounded-xl transition-all ${
+                className={`flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 ${
                   isActive 
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
                     : 'hover:bg-slate-800 hover:text-white'
@@ -55,18 +64,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content Area - Added margin to match sidebar width */}
-      <div className="flex-1 ml-72 flex flex-col">
+      {/* Main Content Area - Shifted for Sidebar */}
+      <div className="flex-1 ml-72 flex flex-col min-w-0">
         <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-10 sticky top-0 z-10 shadow-sm">
-           <div className="text-slate-400 font-medium tracking-wide">
-             {router.pathname.replace('/', '').toUpperCase() || 'DASHBOARD'}
+           <div className="text-slate-400 font-bold tracking-widest text-xs">
+             SYSTEM ONLINE
            </div>
-           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500 font-medium">Highlands County Medical</span>
+           
+           <div className="flex items-center gap-6">
+            {user && (
+              <div className="text-right border-r pr-6 border-slate-200">
+                <div className="text-sm font-bold text-slate-900">{user.username}</div>
+                <div className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter">{user.role}</div>
+              </div>
+            )}
+            <span className="text-sm text-slate-400 font-medium">Highlands County Medical</span>
           </div>
         </header>
 
-        {/* This container prevents the "scrunched" look */}
+        {/* This container provides the breathing room to stop the "scrunched" look */}
         <main className="p-10 flex-1">
           <div className="max-w-screen-2xl mx-auto w-full">
             {children}

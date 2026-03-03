@@ -1,7 +1,9 @@
 import type { AppProps } from "next/app";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import Layout from "../components/Layout";
+import "../styles/globals.css"; // THIS IS THE KEY IMPORT
 
 type Me = {
   id: string;
@@ -13,7 +15,6 @@ type Me = {
 export default function App({ Component, pageProps }: AppProps) {
   const r = useRouter();
   const isLogin = r.pathname === "/login";
-
   const [me, setMe] = useState<Me | null>(null);
 
   function logout() {
@@ -31,48 +32,23 @@ export default function App({ Component, pageProps }: AppProps) {
       return;
     }
 
-    // Fetch current user for the header
     (async () => {
       try {
         const u = await api<Me>("/auth/me");
         setMe(u);
       } catch (e) {
-        // token bad/expired -> force logout
         logout();
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLogin, r.pathname]);
 
-  return (
-    <>
-      {!isLogin && (
-        <div
-          style={{
-            padding: 12,
-            borderBottom: "1px solid #ddd",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <div style={{ fontSize: 14, color: "#444" }}>
-            {me ? (
-              <>
-                Signed in as <b>{me.username}</b> <span style={{ opacity: 0.7 }}>({me.role})</span>
-              </>
-            ) : (
-              "Signed in"
-            )}
-          </div>
+  if (isLogin) {
+    return <Component {...pageProps} />;
+  }
 
-          <button type="button" onClick={logout}>
-            Logout
-          </button>
-        </div>
-      )}
+  return (
+    <Layout user={me}>
       <Component {...pageProps} />
-    </>
+    </Layout>
   );
 }
