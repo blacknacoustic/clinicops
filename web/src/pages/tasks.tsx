@@ -27,7 +27,6 @@ export default function TaskBoard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Explicitly request INTERNAL_TASK to separate from patient callbacks
       const [taskData, userData] = await Promise.all([
         api<any[]>('/callbacks?category=INTERNAL_TASK'),
         api<any[]>('/users')
@@ -43,7 +42,6 @@ export default function TaskBoard() {
 
   useEffect(() => { loadData(); }, []);
 
-  // Search Logic - Queries appointments to find patients
   useEffect(() => {
     const searchPatients = async () => {
       if (patientSearch.length > 1 && !selectedPatient) {
@@ -52,7 +50,6 @@ export default function TaskBoard() {
           const filtered = data.filter(a => 
             a.patient_last_name?.toLowerCase().includes(patientSearch.toLowerCase())
           );
-          // Deduplicate
           const unique = filtered.filter((v, i, a) => a.findIndex(t => t.patient_last_name === v.patient_last_name) === i);
           setSearchResults(unique.slice(0, 5));
         } catch (err) {
@@ -69,7 +66,6 @@ export default function TaskBoard() {
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     const payload = {
       patient_last_name: newTask.title,
       patient_dob: selectedPatient ? selectedPatient.patient_dob : '1900-01-01',
@@ -97,6 +93,11 @@ export default function TaskBoard() {
     setNewTask({ title: '', assigned_user_id: '', priority: 'MEDIUM', outcome_note: '', due_at: new Date().toISOString().split('T')[0] });
     setSelectedPatient(null);
     setPatientSearch("");
+  };
+
+  const updateTaskStatus = async (id: string, status: string) => {
+    await api(`/callbacks/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+    loadData();
   };
 
   return (
@@ -130,12 +131,18 @@ export default function TaskBoard() {
                   {users.find(u => u.id === task.assigned_user_id)?.username || '—'}
                 </div>
                 <div className="col-span-2 flex justify-center">
-                  <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-tighter">
-                    {task.status}
-                  </span>
+                  <select 
+                    value={task.status}
+                    onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                    className="w-32 text-[11px] font-black px-3 py-2 rounded-lg border-2 bg-slate-50 border-slate-200"
+                  >
+                    <option value="NEW">NEW</option>
+                    <option value="IN_PROGRESS">WORKING</option>
+                    <option value="COMPLETED">DONE</option>
+                  </select>
                 </div>
-                <div className="col-span-3 text-sm text-slate-400 italic px-4 truncate">
-                  {task.outcome_note || 'Waiting for update...'}
+                <div className="col-span-3 text-sm text-slate-400 italic px-4 truncate text-center">
+                  {task.outcome_note || '...'}
                 </div>
               </div>
             ))}
@@ -145,7 +152,6 @@ export default function TaskBoard() {
           </div>
         </div>
 
-        {/* MODAL */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
             <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden p-8">
@@ -155,7 +161,7 @@ export default function TaskBoard() {
               </div>
 
               <form onSubmit={handleCreateTask} className="space-y-4">
-                <input required placeholder="Task Title" className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold"
+                <input required placeholder="Task Title" className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold outline-none"
                   value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} />
 
                 <div>
@@ -182,4 +188,28 @@ export default function TaskBoard() {
                         onClick={() => setSelectedPatient({ patient_last_name: "N/A - General", patient_dob: "1900-01-01" })}>
                         N/A - Internal/General
                       </div>
-                      {
+                      {searchResults.map(p => (
+                        <div key={p.id} className="p-4 hover:bg-blue-50 cursor-pointer flex justify-between border-b"
+                          onClick={() => { setSelectedPatient(p); setSearchResults([]); }}>
+                          <span className="font-bold text-slate-900">{p.patient_last_name}</span>
+                          <span className="text-[10px] text-slate-400 font-bold">{p.patient_dob}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <textarea placeholder="Task Instructions" className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl h-24 font-medium outline-none"
+                  value={newTask.outcome_note} onChange={e => setNewTask({...newTask, outcome_note: e.target.value})} />
+
+                <button type="submit" className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-lg hover:bg-blue-700 shadow-xl transition-all">
+                  Assign Task
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </Protected>
+  );
+}
