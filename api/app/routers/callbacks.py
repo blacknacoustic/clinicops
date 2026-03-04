@@ -46,13 +46,10 @@ def list_cbs(
 ):
     q = db.query(Callback)
 
-    # STRICT SEPARATION LOGIC
+    # Separation Logic: Filters by category if provided, otherwise hides internal tasks
     if category == "INTERNAL_TASK":
-        # Only show internal team tasks
         q = q.filter(Callback.category == "INTERNAL_TASK")
     else:
-        # Show regular patient callbacks (Exclude internal tasks)
-        # We use or_ to ensure old records with null categories still show up on the main board
         q = q.filter(or_(Callback.category != "INTERNAL_TASK", Callback.category == None))
 
     if status:
@@ -90,6 +87,13 @@ def update_cb(
     cb.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(cb)
+    return cb
+
+@router.get("/{cb_id}", response_model=schemas.CallbackRead) 
+def get_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    cb = db.query(Callback).filter(Callback.id == cb_id).first()
+    if not cb:
+        raise HTTPException(status_code=404, detail="Callback not found")
     return cb
 
 @router.delete("/{cb_id}")

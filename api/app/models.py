@@ -16,6 +16,7 @@ class CallbackCategory(str, enum.Enum):
     MED = "MED"
     BILLING = "BILLING"
     OTHER = "OTHER"
+    INTERNAL_TASK = "INTERNAL_TASK"  # Add this line
 
 class Priority(str, enum.Enum):
     ROUTINE = "ROUTINE"
