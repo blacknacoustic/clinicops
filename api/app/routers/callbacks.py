@@ -120,14 +120,14 @@ def complete_cb(
 @router.get("", response_model=list[schemas.CallbackRead])
 def list_cbs(
     status: str | None = None,
-    category: str | None = None,  # Add this parameter
+    category: str | None = None, # Add this to the function arguments
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     q = db.query(Callback)
 
-    # CRITICAL: If we ask for INTERNAL_TASK, only show those.
-    # Otherwise, hide them from the regular callback list.
+    # If the frontend asks for INTERNAL_TASK, give only those.
+    # If the frontend asks for nothing (like the old Callbacks page), HIDE internal tasks.
     if category == "INTERNAL_TASK":
         q = q.filter(Callback.category == "INTERNAL_TASK")
     else:
