@@ -6,11 +6,11 @@ import {
   Calendar, 
   Users, 
   FileInput, 
-  Stethoscope
+  Stethoscope,
+  CheckCircle2 // Added for the Tasks icon
 } from 'lucide-react';
 import LogoutButton from './LogoutButton';
 
-// FIX: This interface tells TypeScript that 'user' is a valid prop
 interface LayoutProps {
   children: React.ReactNode;
   user?: {
@@ -24,6 +24,7 @@ export default function Layout({ children, user }: LayoutProps) {
   
   const menuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Tasks', href: '/tasks', icon: CheckCircle2 }, // Task Board Tab
     { name: 'Callbacks', href: '/callbacks', icon: ClipboardList },
     { name: 'Appointments', href: '/appointments', icon: Calendar },
     { name: 'Users', href: '/users', icon: Users },
@@ -32,7 +33,7 @@ export default function Layout({ children, user }: LayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar - Wider and more modern */}
+      {/* Sidebar */}
       <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col fixed h-full z-20 shadow-2xl">
         <div className="p-8 flex items-center gap-3 text-white border-b border-slate-800">
           <Stethoscope className="text-blue-400" size={32} />
@@ -64,7 +65,7 @@ export default function Layout({ children, user }: LayoutProps) {
         </div>
       </aside>
 
-      {/* Main Content Area - Shifted for Sidebar */}
+      {/* Main Content Area */}
       <div className="flex-1 ml-72 flex flex-col min-w-0">
         <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-10 sticky top-0 z-10 shadow-sm">
            <div className="text-slate-400 font-bold tracking-widest text-xs">
@@ -82,7 +83,6 @@ export default function Layout({ children, user }: LayoutProps) {
           </div>
         </header>
 
-        {/* This container provides the breathing room to stop the "scrunched" look */}
         <main className="p-10 flex-1">
           <div className="max-w-screen-2xl mx-auto w-full">
             {children}

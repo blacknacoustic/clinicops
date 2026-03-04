@@ -5,24 +5,18 @@ from uuid import uuid4
 from datetime import datetime, timezone, date
 
 from ..deps import get_db, get_current_user
-from ..models import Callback, CallbackStatus, User
+from ..models import Callback, CallbackStatus, User, Role
 from ..schemas import CallbackCreate, CallbackUpdate
 from .. import schemas, models
 
 router = APIRouter(prefix="/api/callbacks", tags=["callbacks"])
 
-
-@router.post("")
+@router.post("", response_model=schemas.CallbackRead)
 def create_cb(
     payload: CallbackCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """
-    created_by = logged-in user creating the callback
-    assigned_user_id = payload-assigned user, else defaults to creator
-    updated_by = set on create for audit trail (optional)
-    """
     creator_id = user.id
 
     cb = Callback(
@@ -36,18 +30,18 @@ def create_cb(
         due_at=payload.due_at,
         created_by=creator_id,
         assigned_user_id=(payload.assigned_user_id or creator_id),
-        updated_by=creator_id,  # optional: set on create
+        updated_by=creator_id,
     )
     db.add(cb)
     db.commit()
     db.refresh(cb)
     return cb
 
-
-@router.get("")
+@router.get("", response_model=list[schemas.CallbackRead])
 def list_cbs(
     status: str | None = None,
     due: str | None = None,
+    assigned_to: str | None = None, # New: Filter by assigned staff
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -55,6 +49,9 @@ def list_cbs(
 
     if status:
         q = q.filter(Callback.status == status)
+    
+    if assigned_to:
+        q = q.filter(Callback.assigned_user_id == assigned_to)
 
     now = datetime.now(timezone.utc)
 
@@ -79,8 +76,7 @@ def list_cbs(
 
     return q.order_by(Callback.due_at.asc()).limit(500).all()
 
-
-@router.patch("/{cb_id}")
+@router.patch("/{cb_id}", response_model=schemas.CallbackRead)
 def update_cb(
     cb_id: str,
     payload: CallbackUpdate,
@@ -91,17 +87,19 @@ def update_cb(
     if not cb:
         raise HTTPException(status_code=404, detail="Not found")
 
+    # model_dump(exclude_unset=True) allows partial updates 
+    # (e.g. updating JUST the outcome_note from the Task board)
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(cb, k, v)
 
     cb.updated_by = user.id
+    cb.updated_at = datetime.now(timezone.utc) # Track when progress was made
 
     db.commit()
     db.refresh(cb)
     return cb
 
-
-@router.post("/{cb_id}/complete")
+@router.post("/{cb_id}/complete", response_model=schemas.CallbackRead)
 def complete_cb(
     cb_id: str,
     db: Session = Depends(get_db),
@@ -119,21 +117,21 @@ def complete_cb(
     db.refresh(cb)
     return cb
 
-# Change response_model from schemas.Callback to schemas.CallbackRead
 @router.get("/{cb_id}", response_model=schemas.CallbackRead) 
-def get_callback(cb_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    cb = db.query(models.Callback).filter(models.Callback.id == cb_id).first()
+def get_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    cb = db.query(Callback).filter(Callback.id == cb_id).first()
     if not cb:
         raise HTTPException(status_code=404, detail="Callback not found")
     return cb
 
 @router.delete("/{cb_id}")
-def delete_callback(cb_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    cb = db.query(models.Callback).filter(models.Callback.id == cb_id).first()
+def delete_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    cb = db.query(Callback).filter(Callback.id == cb_id).first()
     if not cb:
         raise HTTPException(status_code=404, detail="Callback not found")
     
-    if user.role != models.Role.ADMIN and cb.created_by != user.id:
+    # Restrict deletion to Admin or Creator
+    if user.role != Role.ADMIN and cb.created_by != user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
         
     db.delete(cb)
