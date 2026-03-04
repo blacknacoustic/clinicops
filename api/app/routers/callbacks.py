@@ -117,12 +117,23 @@ def complete_cb(
     db.refresh(cb)
     return cb
 
-@router.get("/{cb_id}", response_model=schemas.CallbackRead) 
-def get_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    cb = db.query(Callback).filter(Callback.id == cb_id).first()
-    if not cb:
-        raise HTTPException(status_code=404, detail="Callback not found")
-    return cb
+@router.get("", response_model=list[schemas.CallbackRead])
+def list_cbs(
+    status: str | None = None,
+    due: str | None = None,
+    category: str | None = None, # NEW: Filter by category
+    assigned_to: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    q = db.query(Callback)
+
+    if category:
+        q = q.filter(Callback.category == category)
+    else:
+        # If no category is requested (like on the Callback board), 
+        # EXCLUDE internal tasks.
+        q = q.filter(Callback.category != "INTERNAL_TASK")
 
 @router.delete("/{cb_id}")
 def delete_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
