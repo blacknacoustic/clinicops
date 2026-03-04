@@ -120,20 +120,23 @@ def complete_cb(
 @router.get("", response_model=list[schemas.CallbackRead])
 def list_cbs(
     status: str | None = None,
-    due: str | None = None,
-    category: str | None = None, # NEW: Filter by category
-    assigned_to: str | None = None,
+    category: str | None = None,  # Add this parameter
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     q = db.query(Callback)
 
-    if category:
-        q = q.filter(Callback.category == category)
+    # CRITICAL: If we ask for INTERNAL_TASK, only show those.
+    # Otherwise, hide them from the regular callback list.
+    if category == "INTERNAL_TASK":
+        q = q.filter(Callback.category == "INTERNAL_TASK")
     else:
-        # If no category is requested (like on the Callback board), 
-        # EXCLUDE internal tasks.
         q = q.filter(Callback.category != "INTERNAL_TASK")
+
+    if status:
+        q = q.filter(Callback.status == status)
+
+    return q.order_by(Callback.due_at.asc()).all()
 
 @router.delete("/{cb_id}")
 def delete_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
