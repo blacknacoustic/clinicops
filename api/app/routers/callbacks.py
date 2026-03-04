@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from uuid import uuid4
 from datetime import datetime, timezone, date
 
 from ..deps import get_db, get_current_user
-from ..models import Callback, CallbackStatus, User, Role, CallbackCategory
+from ..models import Callback, CallbackStatus, User, Role
 from ..schemas import CallbackCreate, CallbackUpdate
 from .. import schemas, models
 
@@ -17,8 +17,6 @@ def create_cb(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    creator_id = user.id
-
     cb = Callback(
         id=str(uuid4()),
         patient_last_name=payload.patient_last_name.strip(),
@@ -28,9 +26,9 @@ def create_cb(
         priority=payload.priority,
         status=payload.status or CallbackStatus.NEW,
         due_at=payload.due_at,
-        created_by=creator_id,
-        assigned_user_id=(payload.assigned_user_id or creator_id),
-        updated_by=creator_id,
+        created_by=user.id,
+        assigned_user_id=(payload.assigned_user_id or user.id),
+        updated_by=user.id,
     )
     db.add(cb)
     db.commit()
@@ -48,12 +46,14 @@ def list_cbs(
 ):
     q = db.query(Callback)
 
-    # STRICT SEPARATION
-    if category:
-        q = q.filter(Callback.category == category)
+    # STRICT SEPARATION LOGIC
+    if category == "INTERNAL_TASK":
+        # Only show internal team tasks
+        q = q.filter(Callback.category == "INTERNAL_TASK")
     else:
-        # Default to excluding internal tasks if no category is specified
-        q = q.filter(Callback.category != "INTERNAL_TASK")
+        # Show regular patient callbacks (Exclude internal tasks)
+        # We use or_ to ensure old records with null categories still show up on the main board
+        q = q.filter(or_(Callback.category != "INTERNAL_TASK", Callback.category == None))
 
     if status:
         q = q.filter(Callback.status == status)
@@ -62,7 +62,6 @@ def list_cbs(
         q = q.filter(Callback.assigned_user_id == assigned_to)
 
     now = datetime.now(timezone.utc)
-
     if due == "overdue":
         q = q.filter(and_(Callback.status != CallbackStatus.COMPLETED, Callback.due_at < now))
     elif due == "today":
@@ -89,34 +88,8 @@ def update_cb(
 
     cb.updated_by = user.id
     cb.updated_at = datetime.now(timezone.utc)
-
     db.commit()
     db.refresh(cb)
-    return cb
-
-@router.post("/{cb_id}/complete", response_model=schemas.CallbackRead)
-def complete_cb(
-    cb_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    cb = db.query(Callback).filter(Callback.id == cb_id).first()
-    if not cb:
-        raise HTTPException(status_code=404, detail="Not found")
-
-    cb.status = CallbackStatus.COMPLETED
-    cb.completed_at = datetime.now(timezone.utc)
-    cb.updated_by = user.id
-
-    db.commit()
-    db.refresh(cb)
-    return cb
-
-@router.get("/{cb_id}", response_model=schemas.CallbackRead) 
-def get_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    cb = db.query(Callback).filter(Callback.id == cb_id).first()
-    if not cb:
-        raise HTTPException(status_code=404, detail="Callback not found")
     return cb
 
 @router.delete("/{cb_id}")
@@ -124,10 +97,8 @@ def delete_callback(cb_id: str, db: Session = Depends(get_db), user: User = Depe
     cb = db.query(Callback).filter(Callback.id == cb_id).first()
     if not cb:
         raise HTTPException(status_code=404, detail="Callback not found")
-    
     if user.role != Role.ADMIN and cb.created_by != user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
-        
     db.delete(cb)
     db.commit()
     return {"ok": True}
